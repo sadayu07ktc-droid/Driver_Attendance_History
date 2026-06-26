@@ -212,11 +212,11 @@ function _renderList(records) {
     else if (rec.status === 'noCheckin'){ badge = '⚠️ ลืมเข้า';     badgeCls = 'bg-warn'; }
     else                                { badge = '— ไม่ครบ';      badgeCls = 'bg-warn'; }
 
-    // เวลา
-    const inTxt  = rec.checkIn  ? `<b>${rec.checkIn}</b>` : `<span class="miss">--</span>`;
+    // เวลา (เติม น. หลังเวลา)
+    const inTxt  = rec.checkIn  ? `<b>${rec.checkIn} น.</b>` : `<span class="miss">--</span>`;
     const outTxt = rec.status === 'upcountry'
       ? `<b>ต่างจังหวัด</b>`
-      : (rec.checkOut ? `<b>${rec.checkOut}</b>` : `<span class="miss">--</span>`);
+      : (rec.checkOut ? `<b>${rec.checkOut} น.</b>` : `<span class="miss">--</span>`);
     const hoursTxt = (rec.hours !== '' && rec.hours != null && rec.status !== 'upcountry')
       ? `<span class="day-hours">${rec.hours} ชม.</span>` : '';
 
@@ -266,11 +266,11 @@ function openModal(rec) {
   let title = 'ขอแก้เวลา', sub = _fmtDate(rec.date);
   if (rec.status === 'noCheckin') {
     title = 'ขอเพิ่มเวลาเข้า';
-    sub = `${_fmtDate(rec.date)} · ออก ${rec.checkOut || '--'}`;
+    sub = `${_fmtDate(rec.date)} · ออก ${rec.checkOut ? rec.checkOut + ' น.' : '--'}`;
     fldIn.style.display = 'block';
   } else if (rec.status === 'noCheckout') {
     title = 'ขอแก้เวลาออก';
-    sub = `${_fmtDate(rec.date)} · เข้า ${rec.checkIn || '--'}`;
+    sub = `${_fmtDate(rec.date)} · เข้า ${rec.checkIn ? rec.checkIn + ' น.' : '--'}`;
     fldOut.style.display = 'block';
   } else {
     title = 'ขอลงเวลา';
