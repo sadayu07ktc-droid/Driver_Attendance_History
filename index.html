@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ลงเวลาเข้า-ออกงาน — SSB</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --green:#4A7C3F;--green-d:#2d5a24;--green-l:#D6E8D0;--green-pale:#EEF7EB;
+  --brown:#8B7355;--cream:#F5F0E8;--cream2:#EDE7D9;--cream3:#FDFAF5;
+  --text:#2C3E1F;--text-m:#5C6B4A;--text-l:#8B9E7A;
+  --border:rgba(74,124,63,.18);--red:#DC2626;--red-l:#FEE2E2;
+  --orange:#EA580C;--blue:#1D4ED8;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Sarabun',sans-serif;background:var(--cream);color:var(--text);min-height:100vh}
+.hdr{background:linear-gradient(135deg,var(--green-d),var(--green));padding:16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.hdr-logo{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px}
+.hdr h1{font-size:17px;font-weight:600;color:#fff;margin:0}
+.hdr p{font-size:11px;color:var(--green-l);margin:2px 0 0}
+.body{padding:16px;max-width:480px;margin:0 auto}
+.user-card{background:var(--green-l);border:.5px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.uc-avatar{width:46px;height:46px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.uc-name{font-size:15px;font-weight:600;color:var(--text)}
+.uc-sub{font-size:12px;color:var(--text-m);margin-top:2px}
+.btn-history{margin-left:auto;flex-shrink:0;background:var(--green);color:#fff;border:none;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px;box-shadow:0 2px 6px rgba(74,124,63,.3)}
+.btn-history:active{opacity:.85}
+.status-card{background:var(--cream3);border:.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.status-title{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--brown);text-transform:uppercase;margin-bottom:12px}
+.status-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0}
+.status-row+.status-row{border-top:.5px solid var(--border)}
+.sr-label{font-size:13px;color:var(--text-m);display:flex;align-items:center;gap:7px}
+.sr-val{font-size:15px;font-weight:700;color:var(--text)}
+.sr-val.empty{color:var(--text-l);font-weight:400}
+.sr-val.in{color:var(--green)}
+.sr-val.out{color:var(--orange)}
+.date-pill{font-size:11px;color:var(--text-m);background:var(--cream2);border-radius:999px;padding:3px 12px}
+/* ── Map ── */
+.map-card{background:var(--cream3);border:.5px solid var(--border);border-radius:14px;padding:8px;margin-bottom:14px;overflow:hidden}
+#map{width:100%;height:240px;border-radius:10px;background:var(--cream2)}
+.geo-status{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;padding:10px 12px;margin-top:8px;border-radius:10px}
+.geo-status.inside{background:var(--green-pale);color:var(--green-d)}
+.geo-status.outside{background:var(--red-l);color:var(--red)}
+.geo-status.loading{background:var(--cream2);color:var(--text-m)}
+.geo-dist{font-weight:700}
+.leaflet-control-attribution{font-size:9px!important}
+/* จุดตำแหน่งเรา + วงกระพริบ */
+.me-dot{position:relative;width:18px;height:18px}
+.me-dot .core{position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#1D4ED8;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);z-index:2}
+.me-dot .pulse{position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#1D4ED8;opacity:.5;z-index:1;animation:mepulse 1.6s ease-out infinite}
+@keyframes mepulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(3.2);opacity:0}}
+.btn{width:100%;padding:18px;border-radius:14px;font-size:18px;font-weight:700;font-family:'Sarabun',sans-serif;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;transition:transform .1s,opacity .15s}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-in{background:var(--green);color:#fff}
+.btn-out{background:#fff;color:var(--orange);border:2px solid var(--orange)}
+.btn-icon{font-size:22px}
+.hint{font-size:12px;color:var(--text-l);text-align:center;line-height:1.7;margin-top:6px;padding:0 8px}
+.hint b{color:var(--text-m)}
+.walk-warn{font-size:13px;font-weight:600;color:var(--orange);background:#FFF4E8;border:1px solid #FCD9B6;border-radius:10px;padding:11px 14px;text-align:center;margin-bottom:6px;line-height:1.6}
+#overlay{display:none;position:fixed;inset:0;background:rgba(245,240,232,.94);z-index:100;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+#overlay.show{display:flex}
+.spinner{width:42px;height:42px;border-radius:50%;border:4px solid var(--green-l);border-top-color:var(--green);animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#overlay p{font-size:15px;color:var(--text-m);font-weight:500}
+#result{display:none;position:fixed;inset:0;background:var(--cream);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;gap:14px}
+#result.show{display:flex}
+.res-icon{font-size:68px}
+.res-title{font-size:24px;font-weight:700}
+.res-title.ok{color:var(--green)}
+.res-title.fail{color:var(--red)}
+.res-msg{font-size:15px;color:var(--text-m);line-height:1.8;white-space:pre-line}
+.res-detail{background:var(--cream3);border:.5px solid var(--border);border-radius:12px;padding:14px 20px;margin-top:4px}
+.res-detail .big{font-size:30px;font-weight:700;color:var(--green)}
+.res-detail .lbl{font-size:12px;color:var(--text-m);margin-top:2px}
+.btn-close{margin-top:12px;padding:13px 40px;border-radius:999px;background:var(--green);color:#fff;font-size:15px;font-weight:600;font-family:'Sarabun',sans-serif;border:none;cursor:pointer}
+.btn-close.fail{background:var(--red)}
+.dist-warn{font-size:13px;color:var(--red);background:var(--red-l);border-radius:10px;padding:10px 14px;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="overlay">
+  <div class="spinner"></div>
+  <p id="overlay-text">กำลังขอตำแหน่ง GPS...</p>
+</div>
+
+<div id="result">
+  <div class="res-icon" id="res-icon">✅</div>
+  <div class="res-title ok" id="res-title">สำเร็จ</div>
+  <div class="res-msg" id="res-msg"></div>
+  <div class="res-detail" id="res-detail" style="display:none">
+    <div class="big" id="res-time">--:--</div>
+    <div class="lbl" id="res-lbl">เวลาเข้างาน</div>
+  </div>
+  <button class="btn-close" id="res-close" onclick="closeResult()">ปิด</button>
+</div>
+
+<div class="hdr">
+  <div class="hdr-logo">🕐</div>
+  <div><h1>ลงเวลาเข้า-ออกงาน</h1><p>SSB Smart Supply</p></div>
+</div>
+
+<div class="body">
+  <div class="user-card">
+    <div class="uc-avatar">🚛</div>
+    <div>
+      <div class="uc-name" id="uname">กำลังโหลด...</div>
+      <div class="uc-sub" id="usub">—</div>
+    </div>
+    <button class="btn-history" onclick="openHistory()">📋 ประวัติ</button>
+  </div>
+
+  <div class="status-card">
+    <div class="status-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📋 สถานะวันนี้</span>
+      <span class="date-pill" id="today-date">—</span>
+    </div>
+    <div class="status-row">
+      <span class="sr-label">🟢 เข้างาน</span>
+      <span class="sr-val empty in" id="st-in">ยังไม่ลง</span>
+    </div>
+    <div class="status-row">
+      <span class="sr-label">🔴 ออกงาน</span>
+      <span class="sr-val empty out" id="st-out">ยังไม่ลง</span>
+    </div>
+    <div class="status-row" id="row-hours" style="display:none">
+      <span class="sr-label">⏱️ รวมเวลาทำงาน</span>
+      <span class="sr-val" id="st-hours">—</span>
+    </div>
+  </div>
+
+  <div class="map-card">
+    <div id="map"></div>
+    <div class="geo-status loading" id="geo-status">
+      <span class="spinner" style="width:16px;height:16px;border-width:2px"></span>
+      <span>กำลังหาตำแหน่งของคุณ...</span>
+    </div>
+  </div>
+
+  <button class="btn btn-in" id="btn-in" onclick="doAttendance('in')" disabled>
+    <span class="btn-icon">🟢</span> ลงเวลาเข้างาน
+  </button>
+  <button class="btn btn-out" id="btn-out" onclick="doAttendance('out')" disabled>
+    <span class="btn-icon">🔴</span> ลงเวลาออกงาน
+  </button>
+
+  <div class="walk-warn" id="walk-warn" style="display:none"></div>
+
+  <p class="hint">📍 ต้องอยู่ในรัศมี <b>500 เมตร</b> จากโรงงาน จึงจะลงเวลาได้<br>กรุณาเปิด <b>ตำแหน่ง (Location)</b> บนมือถือก่อนกดปุ่ม</p>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4UvKuRrAQ_3Ldm8U0VJqfjfBQUSYaTEdrxkdXUVN98G68XseCquhDeXfMgU8cVYaY/exec';
+// 🔧 ตั้งเป็น LIFF ID ของหน้าลงเวลานี้
+const LIFF_ID = '2010274217-UYCm7EXk';
+// 🔧 ตั้งเป็น LIFF ID ของหน้าประวัติ (สร้างทีหลัง) — ชั่วคราวเปิดผ่าน GAS ?page=attendance_history
+const HISTORY_LIFF_ID = '2010274217-auqyTo6I';
+const RADIUS_M = 300;
+let U = {};
+let map, factoryMarker, radiusCircle, meMarker;
+let factory = null;        // {lat, lon}
+let watchId = null;
+let lastPos = null;        // {lat, lng}
+let insideZone = false;
+
+// เปิดหน้าประวัติการลงเวลา
+function openHistory() {
+  if (HISTORY_LIFF_ID) {
+    window.location.href = 'https://liff.line.me/' + HISTORY_LIFF_ID;
+  } else {
+    // ยังไม่ตั้ง LIFF ประวัติ → เปิดผ่าน GAS page=attendance_history
+    window.location.href = GAS_URL + '?page=attendance_history&userId=' + (U.userId || '');
+  }
+}
+
+async function init() {
+  // ── ส่วนแผนที่ (ไม่ต้องพึ่ง liff — โหลดได้เลย) ──
+  _initMapSection();
+
+  // ── ส่วน liff + ข้อมูลผู้ใช้ ──
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const p = await liff.getProfile();
+    U.userId = p.userId;
+
+    const today = new Date();
+    document.getElementById('today-date').textContent =
+      today.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+
+    const [uRes, aRes] = await Promise.all([
+      fetch(`${GAS_URL}?action=getUser&userId=${p.userId}`).then(r => r.json()).catch(() => ({})),
+      fetch(`${GAS_URL}?action=getAttendanceToday&userId=${p.userId}`).then(r => r.json()).catch(() => ({}))
+    ]);
+
+    if (uRes && uRes.status === 'ok') {
+      document.getElementById('uname').textContent = uRes.name || p.displayName;
+      document.getElementById('usub').textContent =
+        `${uRes.plate || '—'}${uRes.phone ? ' · ' + uRes.phone : ''}`;
+    } else {
+      document.getElementById('uname').textContent = p.displayName;
+    }
+
+    _renderStatus(aRes);
+  } catch (e) {
+    document.getElementById('uname').textContent = '⚠️ เปิดผ่าน LINE เพื่อใช้งาน';
+    document.getElementById('usub').textContent = 'ทดสอบนอก LINE — ลงเวลายังไม่ได้';
+    console.error('LIFF error:', e);
+  }
+}
+
+// ── โหลดพิกัดโรงงาน + สร้างแผนที่ + ติดตามตำแหน่งสด (อิสระจาก liff) ──
+async function _initMapSection() {
+  try {
+    const today = new Date();
+    document.getElementById('today-date').textContent =
+      today.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+
+    const fRes = await fetch(`${GAS_URL}?action=getFactoryCoord`).then(r => r.json()).catch(() => ({}));
+    if (fRes && fRes.success && fRes.lat != null && fRes.lon != null) {
+      factory = { lat: fRes.lat, lon: fRes.lon };
+      _initMap();
+      _startWatch();
+    } else {
+      document.getElementById('geo-status').className = 'geo-status outside';
+      document.getElementById('geo-status').innerHTML = '⚠️ ยังไม่ได้ตั้งพิกัดโรงงานในระบบ';
+    }
+  } catch (e) {
+    document.getElementById('geo-status').className = 'geo-status outside';
+    document.getElementById('geo-status').innerHTML = '⚠️ โหลดแผนที่ไม่สำเร็จ';
+    console.error('Map error:', e);
+  }
+}
+
+function _renderStatus(a) {
+  if (!a || !a.success) return;
+  const inEl  = document.getElementById('st-in');
+  const outEl = document.getElementById('st-out');
+  const btnIn  = document.getElementById('btn-in');
+  const btnOut = document.getElementById('btn-out');
+
+  if (a.checkIn) {
+    inEl.textContent = a.checkIn + ' น.';
+    inEl.classList.remove('empty');
+    btnIn.disabled = true;
+    btnIn.dataset.done = '1';
+    btnIn.innerHTML = '<span class="btn-icon">✅</span> เข้างานแล้ว ' + a.checkIn;
+  }
+  if (a.checkOut) {
+    outEl.textContent = a.checkOut + ' น.';
+    outEl.classList.remove('empty');
+    btnOut.disabled = true;
+    btnOut.dataset.done = '1';
+    btnOut.innerHTML = '<span class="btn-icon">✅</span> ออกงานแล้ว ' + a.checkOut;
+  }
+  if (a.hours) {
+    document.getElementById('row-hours').style.display = 'flex';
+    document.getElementById('st-hours').textContent = a.hours;
+  }
+  // ยังไม่เข้างาน → ปุ่มออกงานยังกดไม่ได้ (รอเข้างานก่อน)
+  btnOut.dataset.noCheckin = a.checkIn ? '0' : '1';
+  if (!a.checkIn) btnOut.disabled = true;
+}
+
+// ── สร้างแผนที่ + หมุดโรงงาน + วงรัศมี 500 ม. ──
+function _initMap() {
+  map = L.map('map', { zoomControl: true, attributionControl: true })
+         .setView([factory.lat, factory.lon], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // วงรัศมี 500 ม.
+  radiusCircle = L.circle([factory.lat, factory.lon], {
+    radius: RADIUS_M, color: '#4A7C3F', weight: 2,
+    fillColor: '#4A7C3F', fillOpacity: 0.12
+  }).addTo(map);
+
+  // หมุดโรงงาน (ไอคอน emoji)
+  const facIcon = L.divIcon({
+    html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))">🏭</div>',
+    className: '', iconSize: [28, 28], iconAnchor: [14, 14]
+  });
+  factoryMarker = L.marker([factory.lat, factory.lon], { icon: facIcon })
+    .addTo(map).bindPopup('โรงงาน (จุดลงเวลา)');
+
+  // ซูมให้เห็นวงเต็ม
+  map.fitBounds(radiusCircle.getBounds(), { padding: [20, 20] });
+  setTimeout(() => map.invalidateSize(), 200);
+}
+
+// ── ติดตามตำแหน่งสด ──
+function _startWatch() {
+  if (!navigator.geolocation) {
+    _setGeoStatus('outside', '⚠️ อุปกรณ์ไม่รองรับ GPS');
+    return;
+  }
+  watchId = navigator.geolocation.watchPosition(
+    pos => _updateMe(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
+    err => {
+      let msg = 'ขอตำแหน่งไม่สำเร็จ';
+      if (err.code === 1) msg = '⚠️ กรุณาอนุญาตการเข้าถึงตำแหน่ง';
+      else if (err.code === 2) msg = '⚠️ หาตำแหน่งไม่ได้ ลองออกที่โล่ง';
+      _setGeoStatus('outside', msg);
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 2000 }
+  );
+}
+
+// ── อัปเดตหมุดตำแหน่งคุณ + คำนวณระยะ ──
+function _updateMe(lat, lng, acc) {
+  lastPos = { lat, lng };
+
+  // หมุดตำแหน่งคุณ (จุดน้ำเงินกระพริบ)
+  const meIcon = L.divIcon({
+    html: '<div class="me-dot"><div class="pulse"></div><div class="core"></div></div>',
+    className: '', iconSize: [18, 18], iconAnchor: [9, 9]
+  });
+  if (!meMarker) {
+    meMarker = L.marker([lat, lng], { icon: meIcon, zIndexOffset: 1000 }).addTo(map).bindPopup('ตำแหน่งของคุณ');
+  } else {
+    meMarker.setLatLng([lat, lng]);
+  }
+
+  // คำนวณระยะ (Haversine)
+  const dist = _haversine(lat, lng, factory.lat, factory.lon);
+  insideZone = dist <= RADIUS_M;
+
+  if (insideZone) {
+    _setGeoStatus('inside', `✅ อยู่ในเขตโรงงาน · ห่าง <span class="geo-dist">${dist} ม.</span>`);
+    document.getElementById('walk-warn').style.display = 'none';
+  } else {
+    _setGeoStatus('outside', `❌ อยู่นอกเขต · ห่าง <span class="geo-dist">${dist} ม.</span> (เกิน ${RADIUS_M} ม.)`);
+    const need = dist - RADIUS_M;
+    const ww = document.getElementById('walk-warn');
+    ww.style.display = 'block';
+    ww.innerHTML = `🚶 เดินเข้าใกล้โรงงานอีก <b>${need} เมตร</b><br>จึงจะลงเวลาได้`;
+  }
+  _refreshButtons();
+}
+
+function _setGeoStatus(cls, html) {
+  const el = document.getElementById('geo-status');
+  el.className = 'geo-status ' + cls;
+  el.innerHTML = html;
+}
+
+// เปิด/ปิดปุ่มตามเขต + สถานะลงเวลาวันนี้
+function _refreshButtons() {
+  const btnIn  = document.getElementById('btn-in');
+  const btnOut = document.getElementById('btn-out');
+  // ถ้าลงเวลาไปแล้ว ปุ่มจะถูก disable จาก _renderStatus อยู่แล้ว — ไม่ override
+  if (!btnIn.dataset.done)  btnIn.disabled  = !insideZone;
+  if (!btnOut.dataset.done) btnOut.disabled = !insideZone || btnOut.dataset.noCheckin === '1';
+}
+
+// Haversine (เมตร) ฝั่ง client
+function _haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function _getPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('อุปกรณ์ไม่รองรับ GPS')); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => {
+        let msg = 'ขอตำแหน่งไม่สำเร็จ';
+        if (err.code === 1) msg = 'กรุณาอนุญาตการเข้าถึงตำแหน่ง (Location) แล้วลองใหม่';
+        else if (err.code === 2) msg = 'หาตำแหน่งไม่ได้ กรุณาออกไปที่โล่งแล้วลองใหม่';
+        else if (err.code === 3) msg = 'ขอตำแหน่งนานเกินไป กรุณาลองใหม่';
+        reject(new Error(msg));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+}
+
+async function doAttendance(mode) {
+  const overlay = document.getElementById('overlay');
+
+  // ใช้ตำแหน่งสดจากแผนที่ก่อน (ตรงกับที่โชว์) — ถ้ายังไม่มีค่อยขอใหม่
+  let pos = lastPos;
+  if (!pos) {
+    document.getElementById('overlay-text').textContent = 'กำลังขอตำแหน่ง GPS...';
+    overlay.classList.add('show');
+    try {
+      pos = await _getPosition();
+    } catch (e) {
+      overlay.classList.remove('show');
+      showResult(false, mode, { error: e.message });
+      return;
+    }
+  }
+
+  document.getElementById('overlay-text').textContent = 'กำลังบันทึกเวลา...';
+  overlay.classList.add('show');
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'attendanceCheck', userId: U.userId,
+        mode, lat: pos.lat, lng: pos.lng
+      })
+    });
+    const r = await res.json();
+    overlay.classList.remove('show');
+    showResult(r.success, mode, r);
+  } catch (e) {
+    overlay.classList.remove('show');
+    showResult(false, mode, { error: 'เชื่อมต่อไม่ได้ กรุณาลองใหม่' });
+  }
+}
+
+function showResult(ok, mode, r) {
+  const isIn = mode === 'in';
+  document.getElementById('res-icon').textContent = ok ? '✅' : '🚫';
+  const t = document.getElementById('res-title');
+  t.textContent = ok ? (isIn ? 'ลงเวลาเข้างานสำเร็จ' : 'ลงเวลาออกงานสำเร็จ') : 'ลงเวลาไม่สำเร็จ';
+  t.className = 'res-title ' + (ok ? 'ok' : 'fail');
+
+  const detail = document.getElementById('res-detail');
+  const msg = document.getElementById('res-msg');
+  const closeBtn = document.getElementById('res-close');
+  closeBtn.className = 'btn-close' + (ok ? '' : ' fail');
+
+  if (ok) {
+    detail.style.display = 'block';
+    document.getElementById('res-time').textContent = r.time + ' น.';
+    document.getElementById('res-lbl').textContent =
+      isIn ? `เวลาเข้างาน · ห่างโรงงาน ${r.distance} ม.` : `เวลาออกงาน · ห่างโรงงาน ${r.distance} ม.`;
+    msg.textContent = !isIn && r.hours ? `รวมเวลาทำงานวันนี้ ${r.hours}` : '';
+  } else {
+    detail.style.display = 'none';
+    msg.textContent = r.error || 'เกิดข้อผิดพลาด';
+  }
+  document.getElementById('result').classList.add('show');
+}
+
+function closeResult() {
+  document.getElementById('result').classList.remove('show');
+  // โหลดสถานะใหม่หลังลงเวลาสำเร็จ
+  fetch(`${GAS_URL}?action=getAttendanceToday&userId=${U.userId}`)
+    .then(r => r.json()).then(a => { _renderStatus(a); _refreshButtons(); }).catch(() => {});
+}
+
+init();
+</script>
+</body>
+</html>
