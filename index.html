@@ -289,7 +289,10 @@ function closeModal() {
 }
 
 // ── ส่งคำขอแก้เวลา ──
+let _sending = false;   // กันกดส่งซ้ำ
+
 async function sendEditRequest() {
+  if (_sending) return;        // กำลังส่งอยู่ → ไม่รับกดซ้ำ
   if (!_editing) return;
   const reason = document.getElementById('inp-reason').value.trim();
   const newIn  = document.getElementById('inp-in').value;
@@ -299,6 +302,7 @@ async function sendEditRequest() {
   if (document.getElementById('fld-in').style.display !== 'none' && !newIn)  { showToast('กรุณาระบุเวลาเข้า'); return; }
   if (document.getElementById('fld-out').style.display !== 'none' && !newOut){ showToast('กรุณาระบุเวลาออก'); return; }
 
+  _sending = true;
   const btn = document.getElementById('btn-send');
   btn.disabled = true; btn.textContent = 'กำลังส่ง...';
 
@@ -319,12 +323,14 @@ async function sendEditRequest() {
     if (r.success) {
       closeModal();
       showToast('✅ ส่งคำขอแล้ว รอแอดมินอนุมัติ');
+      _loadHistory();   // โหลดประวัติใหม่
     } else {
       showToast('❌ ' + (r.error || 'ส่งไม่สำเร็จ'));
     }
   } catch(e) {
     showToast('❌ เชื่อมต่อไม่ได้');
   } finally {
+    _sending = false;
     btn.disabled = false; btn.textContent = 'ส่งคำขอ';
   }
 }
