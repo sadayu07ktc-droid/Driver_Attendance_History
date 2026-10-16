@@ -135,7 +135,8 @@ body{font-family:'Sarabun',sans-serif;background:var(--cream);color:var(--text);
 <div id="toast"></div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw2DXaTVoX5cgUZjQrGlpx7tQ1-gwcYYB85eY8MElo2oaqBIxCsjVfL7yMiM8uuUw9YxA/exec';
+// 2026-10-16: ประวัติ + ขอแก้เวลา → Edge attendance (Supabase) · GAS attendance.gs พังตั้งแต่ย้ายเมล 11 ก.ย.
+const ATT_URL = 'https://abihhdjcrbvwlkzwvjio.supabase.co/functions/v1/attendance';
 const LIFF_ID = '2010274217-auqyTo6l';        // LIFF หน้าประวัติ
 const ATTENDANCE_LIFF = '2010274217-UYCm7EXk'; // LIFF หน้าลงเวลา (กดกลับ)
 let U = {};
@@ -169,7 +170,7 @@ async function init() {
 // ── โหลดประวัติ ──
 async function _loadHistory() {
   try {
-    const r = await fetch(`${GAS_URL}?action=getAttendanceHistory&userId=${U.userId}`).then(r => r.json());
+    const r = await fetch(`${ATT_URL}?action=getAttendanceHistory&userId=${encodeURIComponent(U.userId)}`).then(r => r.json());
     if (!r.success) {
       document.getElementById('list').innerHTML =
         '<div class="empty">❌ ' + (r.error || 'โหลดไม่สำเร็จ') + '</div>';
@@ -307,8 +308,9 @@ async function sendEditRequest() {
   btn.disabled = true; btn.textContent = 'กำลังส่ง...';
 
   try {
-    const r = await fetch(GAS_URL, {
+    const r = await fetch(ATT_URL, {
       method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
         action: 'attendanceEditRequest',
         userId: U.userId,
